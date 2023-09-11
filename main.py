@@ -10,10 +10,9 @@ from sklearn.metrics import confusion_matrix,accuracy_score
 from sklearn.preprocessing import LabelEncoder,MinMaxScaler
 import seaborn
 seaborn.set(style='whitegrid',font_scale=1.0)
-import re
 from collections import Counter
+from dataprepare import *
 import argparse
-from utils import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--use-cuda', default=False,
@@ -85,7 +84,6 @@ class GNet(nn.Module):
         self.res1 = GraphConv(in_dim,hid_dim,bias=bias,activation=F.relu)
         self.res2 = GraphConv(hid_dim,out_dim,bias=bias,activation=None)
         self.lin = nn.Linear(s.shape[1],hid_dim)
-        self.beta = nn.Parameter(torch.FloatTensor(1))
     
     def forward(self,g,z,s):
         h = self.res1(g,z)
@@ -99,10 +97,19 @@ pred = np.zeros_like(y)
 x = torch.from_numpy(x).float()
 s = torch.from_numpy(s).float()
 y = torch.from_numpy(y).long()
+
 for train,test in kf.split(x,y):
     yt = y[train]
     yv = y[test]
     clf = GNet(x.shape[1],max(y)+1)
+    if args.cuda:
+        clf = clf.cuda()
+        graph = graph.cuda()
+        x = x.cuda()
+        s = s.cuda()
+        yt = yt.cuda()
+        weight = weight.cuda()
+    
     opt = torch.optim.Adam(clf.parameters(),lr=args.lr,weight_decay=args.wd)
     clf.train()
     for e in range(args.epochs):     
@@ -116,8 +123,13 @@ for train,test in kf.split(x,y):
     
     clf.eval()
     h,z = clf(graph,x,s)
-    h = h.detach().numpy()
-    z = z.detach().numpy()
+    if args.cuda:
+        h = h.cpu().detach().numpy()
+        z = z.cpu().detach().numpy()
+    else:
+        h = h.detach().numpy()
+        z = z.detach().numpy()
+    
     pred = z[test].argmax(axis=1)
     cm += confusion_matrix(yv,pred)
     print(accuracy_score(yv,pred))
@@ -139,14 +151,4 @@ seaborn.scatterplot(x=xx[:,0],y=xx[:,1],hue=y0)
 plt.show()
 a = np.corrcoef(h)
 a[np.where(np.isnan(a))] = 0
-def query(s):
-    ff = f[f['name'].str.contains(s,flags=re.IGNORECASE)]
-    for idx,row in ff.iterrows():
-        score = pd.DataFrame(columns=['name','category','score'])
-        score['name'] = f['name']
-        score['category'] = f['category']
-        score['score'] = a[idx]
-        score = score.sort_values(by='score',ascending=False)
-        score.to_csv('score-'+row['name']+'.csv',index=False)
-
-query('Green tea')
+np.savetxt(path+'foodsim.txt',a,fmt='%.3f')

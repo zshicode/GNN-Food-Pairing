@@ -26,7 +26,43 @@ rdkit
 python main.py --data 1
 ```
 
-After running `main.py`, the script outputs the classification accuracy of the model (see Method). Function `query()` requires target food string (e.g. `'Green tea'`) and outputs CSV containing the scores of other foods while pairing with target food.
+After running `main.py`, the script outputs the classification accuracy of the model (see Method), and saves the similarity matrix of foods.
+
+3. Run `casestudy.py`. Herein, function `query()` requires target food string (e.g. `Green tea`) and outputs CSV containing the scores of other foods while pairing with target food.
+
+```python
+path = './Data1'
+a = np.loadtxt(path+'foodsim.txt')
+f = pd.read_csv(path+'food.csv')
+def query(s,a,f):
+    # ...
+
+query('Green tea',a,f)
+```
+
+## Options
+
+We adopt an argument parser by package  `argparse` in Python, and the options for running code are defined as follow:
+
+```python
+parser = argparse.ArgumentParser()
+parser.add_argument('--use-cuda', default=False,
+                    help='CUDA training.')
+parser.add_argument('--seed', type=int, default=1, help='Random seed.')
+parser.add_argument('--epochs', type=int, default=200,
+                    help='Number of epochs to train.')
+parser.add_argument('--lr', type=float, default=0.01,
+                    help='Learning rate.')
+parser.add_argument('--wd', type=float, default=1e-5,
+                    help='Weight decay (L2 loss on parameters).')
+parser.add_argument('--hidden', type=int, default=64,
+                    help='Dimension of representations')
+parser.add_argument('--data', type=int, default=1,
+                    help='Dataset')               
+
+args = parser.parse_args()
+args.cuda = args.use_cuda and torch.cuda.is_available()
+```
 
 ## Datasets
 
